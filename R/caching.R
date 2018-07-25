@@ -1,4 +1,10 @@
+# library(parallel)
 library(assertthat)
+library(digest)
+# library(foreach)
+# # library(doSNOW)
+# library(doParallel)
+
 
 #' Save an object (cache)
 #'
@@ -6,14 +12,15 @@ library(assertthat)
 #' @return nothing
 #' @export
 #' @examples
-#' save_object(iris)
-save_object <- function(o){
+#' save.object(iris)
+save.object <- function(o, name = NULL){
   cache.dir <- ".cache"
   dir.create(cache.dir, showWarnings = FALSE) #file.path(mainDir, subDir)
-  name <- deparse(substitute(o))
+  if(is.null(name)){name <- deparse(substitute(o))}
   write(paste("Saving object ", name, sep=""), stderr())
   saveRDS(o, file.path(cache.dir, paste(name, ".rds", sep="")))
   write(paste("Object ", name, " saved", sep=""), stderr())
+  name
 }
 
 #' Load an object (cache)
@@ -23,13 +30,13 @@ save_object <- function(o){
 #' @return object or nothing
 #' @export
 #' @examples
-#' load_object("iris", global=T)
-#' iris2 <- load_object("iris")
-load_object <- function(name, global=F){
+#' load.object("iris", global=T)
+#' iris2 <- load.object("iris")
+load.object <- function(name, global=F){
   if (is.null(global)){global=F}
   cache.dir <- ".cache"
   assert_that(is.string(name))
-  assert_that(file.cached(name))
+  assert_that(object.cached(name))
   assert_that(dir.exists(cache.dir))
   write(paste("Loading object ", name, sep=""), stderr())
   if(global){
@@ -49,16 +56,16 @@ load_object <- function(name, global=F){
 #' @return bool TRUE if object is cached, else FALSE
 #' @export
 #' @examples
-#' file.cached("iris")
-file.cached <- function(name){
+#' object.cached("iris")
+object.cached <- function(name){
   cache.dir <- ".cache"
   if(!is.string(name)){return(F)}
   if(file.exists(file.path(cache.dir, paste(name, ".rds", sep="")))){return(T)}
   return(F)
 }
 
-#' For assertthat library. What to do if assert_that(file.cached("iris")) fails
-on_failure(file.cached) <- function(call, env) {
+#' For assertthat library. What to do if assert_that(object.cached("iris")) fails
+on_failure(object.cached) <- function(call, env) {
   "File is not cached"
 }
 
@@ -67,10 +74,11 @@ on_failure(file.cached) <- function(call, env) {
 #' @return vector of the names of the cached objects (as strings)
 #' @export
 #' @examples
-#' get.file.cached()
-get.file.cached <- function(){
+#' get.object.cached()
+get.object.cached <- function(){
   cache.dir <- ".cache"
-  assert_that(dir.exists(cache.dir))
+  if(!dir.exists(cache.dir)){return(c())}
+  # assert_that(dir.exists(cache.dir))
   files <- list.files(cache.dir)
   objects <- c()
   for(f in files){
@@ -84,9 +92,89 @@ get.file.cached <- function(){
 #' @return nothing
 #' @export
 #' @examples
-#' load.all.cached.files()
-load.all.cached.files <- function(){
-  for(x in get.file.cached()){
-    load_object(x, global=T)
+#' load.all.cached.objects()
+load.all.cached.objects <- function(){
+  for(x in get.object.cached()){
+    load.object(x, global=T)
   }
+}
+
+#' Saves all cached objects in the global environment. Used to save an envirnoment quickly.
+#' This seems to be much faster than save.data It is also much more modular. It alows to
+#' load individual objects in other projects for example to combine data analysed separately.
+#'
+#' @return nothing
+#' @export
+#' @examples
+#' save.all.objects()
+save.all.objects <- function(env){
+  obj <- list.objects(env=env)
+  obj <- obj[!(obj$CLASS == "function"),]$OBJECT
+  # print(obj)
+
+  for(x in obj){
+    write(paste("Object ", x, " to be saved", sep=""), stderr())
+    save.object(mget(x, envir=env), name=x)
+  }
+}
+
+#' Saves all cached objects in the global environment. Used to save an envirnoment quickly.
+#' This seems to be much faster than save.data It is also much more modular. It alows to
+#' load individual objects in other projects for example to combine data analysed separately.
+#'
+#' @return nothing
+#' @export
+#' @examples
+#' save.all.objects()
+save.all.objects <- function(env, cores = NULL){
+  obj <- list.objects(env=env)
+  obj <- obj[!(obj$CLASS == "function"),]$OBJECT
+
+  names <- obj
+  obj.values <- lapply(names, mget, envir=env)
+  names(obj.values) <- names
+
+  if(is.null(cores) || cores <= 1){
+    lapply(obj.values, function(x) {
+      n <- names(x)
+      v <- x[[1]]
+      write(paste("Object ", n, " to be saved", sep=""), stderr())
+      save.object(v, name=n)
+    })
+  }
+}
+
+
+#' List all objects and return them in a dataframe associated with their type
+#'
+#' @return dataframe of boject names associated with their types
+#' @export
+#' @examples
+#' list.objects()
+list.objects <- function(env = .GlobalEnv)
+{
+  if(!is.environment(env)){
+    env <- deparse(substitute(env))
+    stop(sprintf('"%s" must be an environment', env))
+  }
+  obj.type <- function(x) class(get(x, envir = env))
+  foo <- sapply(ls(envir = env), obj.type)
+  object.name <- names(foo)
+  names(foo) <- seq(length(foo))
+  dd <- data.frame(CLASS = foo, OBJECT = object.name,
+                   stringsAsFactors = FALSE)
+  dd[order(dd$CLASS),]
+}
+
+#' Remove object from cache
+#'
+#' @return name of the object removed
+#' @export
+#' @examples
+#' uncache.object('df')
+uncache.object <- function(name){
+  cache.dir <- ".cache"
+  assert_that(is.string(name))
+  assert_that(object.cached(name))
+  file.remove(file.path(cache.dir, paste(name, ".rds", sep="")))
 }

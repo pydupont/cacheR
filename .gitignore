@@ -3,3 +3,7 @@ packrat/lib*/
 .cache
 packrat/src
 packrat/src/
+NAMESPACE.old
+.Rhistory
+.RData
+*.lock

@@ -6,7 +6,12 @@
 This seems to be much faster than save.data It is also much more modular. It alows to
 load individual objects in other projects for example to combine data analysed separately.}
 \usage{
-save.all.objects(env)
+save.all.objects(env, cores = NULL)
+}
+\arguments{
+\item{env}{The environment containing the object to save. Most of the time this is .GlobalEnv}
+
+\item{cores}{The number of cores to use}
 }
 \value{
 nothing

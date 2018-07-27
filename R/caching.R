@@ -1,10 +1,7 @@
-# library(parallel)
+library(parallel)
 library(assertthat)
-library(digest)
-# library(foreach)
-# # library(doSNOW)
-# library(doParallel)
 
+cache.dir <<- ".cache"
 
 #' Save an object (cache)
 #'
@@ -14,8 +11,7 @@ library(digest)
 #' @examples
 #' save.object(iris)
 save.object <- function(o, name = NULL){
-  cache.dir <- ".cache"
-  dir.create(cache.dir, showWarnings = FALSE) #file.path(mainDir, subDir)
+  dir.create(cache.dir, showWarnings = FALSE)
   if(is.null(name)){name <- deparse(substitute(o))}
   write(paste("Saving object ", name, sep=""), stderr())
   saveRDS(o, file.path(cache.dir, paste(name, ".rds", sep="")))
@@ -34,7 +30,6 @@ save.object <- function(o, name = NULL){
 #' iris2 <- load.object("iris")
 load.object <- function(name, global=F){
   if (is.null(global)){global=F}
-  cache.dir <- ".cache"
   assert_that(is.string(name))
   assert_that(object.cached(name))
   assert_that(dir.exists(cache.dir))
@@ -58,7 +53,6 @@ load.object <- function(name, global=F){
 #' @examples
 #' object.cached("iris")
 object.cached <- function(name){
-  cache.dir <- ".cache"
   if(!is.string(name)){return(F)}
   if(file.exists(file.path(cache.dir, paste(name, ".rds", sep="")))){return(T)}
   return(F)
@@ -76,13 +70,13 @@ on_failure(object.cached) <- function(call, env) {
 #' @examples
 #' get.object.cached()
 get.object.cached <- function(){
-  cache.dir <- ".cache"
   if(!dir.exists(cache.dir)){return(c())}
   # assert_that(dir.exists(cache.dir))
   files <- list.files(cache.dir)
   objects <- c()
   for(f in files){
-    objects <- c(objects, sub("^(.*)\\.rds", "\\1", basename(f)))
+    name <- sub("^(.*)\\.rds", "\\1", basename(f))
+    objects <- c(objects, name)
   }
   return(objects)
 }
@@ -103,25 +97,8 @@ load.all.cached.objects <- function(){
 #' This seems to be much faster than save.data It is also much more modular. It alows to
 #' load individual objects in other projects for example to combine data analysed separately.
 #'
-#' @return nothing
-#' @export
-#' @examples
-#' save.all.objects()
-save.all.objects <- function(env){
-  obj <- list.objects(env=env)
-  obj <- obj[!(obj$CLASS == "function"),]$OBJECT
-  # print(obj)
-
-  for(x in obj){
-    write(paste("Object ", x, " to be saved", sep=""), stderr())
-    save.object(mget(x, envir=env), name=x)
-  }
-}
-
-#' Saves all cached objects in the global environment. Used to save an envirnoment quickly.
-#' This seems to be much faster than save.data It is also much more modular. It alows to
-#' load individual objects in other projects for example to combine data analysed separately.
-#'
+#' @param env The environment containing the object to save. Most of the time this is .GlobalEnv
+#' @param cores The number of cores to use
 #' @return nothing
 #' @export
 #' @examples
@@ -129,18 +106,32 @@ save.all.objects <- function(env){
 save.all.objects <- function(env, cores = NULL){
   obj <- list.objects(env=env)
   obj <- obj[!(obj$CLASS == "function"),]$OBJECT
-
   names <- obj
   obj.values <- lapply(names, mget, envir=env)
   names(obj.values) <- names
 
-  if(is.null(cores) || cores <= 1){
+  if(is.null(cores) || cores == 1){
     lapply(obj.values, function(x) {
       n <- names(x)
       v <- x[[1]]
       write(paste("Object ", n, " to be saved", sep=""), stderr())
       save.object(v, name=n)
     })
+  }
+  else if(cores > 1){
+    if(cores >= detectCores()){cores <- detectCores() - 1 }
+    cores <- min(length(obj), cores)
+    cl <- makeCluster(cores)
+    clusterExport(cl, "save.object")
+    clusterExport(cl, "cache.dir")
+    clusterEvalQ(cl, library("digest"))
+    parLapply(cl, obj.values, function(x) {
+      n <- names(x)
+      v <- x[[1]]
+      write(paste("Object ", n, " to be saved", sep=""), stderr())
+      save.object(v, name=n)
+    })
+    stopCluster(cl)
   }
 }
 
@@ -173,7 +164,6 @@ list.objects <- function(env = .GlobalEnv)
 #' @examples
 #' uncache.object('df')
 uncache.object <- function(name){
-  cache.dir <- ".cache"
   assert_that(is.string(name))
   assert_that(object.cached(name))
   file.remove(file.path(cache.dir, paste(name, ".rds", sep="")))

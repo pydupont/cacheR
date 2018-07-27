@@ -7,7 +7,6 @@ cache.dir <<- ".cache"
 #'
 #' @param o object to save
 #' @return nothing
-#' @export
 #' @examples
 #' save.object(iris)
 save.object <- function(o, name = NULL){
@@ -24,7 +23,6 @@ save.object <- function(o, name = NULL){
 #' @param name name of the object to load
 #' @param global load in the global environment (if TRUE) or as an object (if FALSE, default)
 #' @return object or nothing
-#' @export
 #' @examples
 #' load.object("iris", global=T)
 #' iris2 <- load.object("iris")
@@ -49,7 +47,6 @@ load.object <- function(name, global=F){
 #'
 #' @param name name of the object to search
 #' @return bool TRUE if object is cached, else FALSE
-#' @export
 #' @examples
 #' object.cached("iris")
 object.cached <- function(name){
@@ -59,6 +56,10 @@ object.cached <- function(name){
 }
 
 #' For assertthat library. What to do if assert_that(object.cached("iris")) fails
+#'
+#' @param call the function calling it?
+#' @param env the environment
+#' @return nothing
 on_failure(object.cached) <- function(call, env) {
   "File is not cached"
 }
@@ -66,7 +67,6 @@ on_failure(object.cached) <- function(call, env) {
 #' Return a list of the cached files
 #'
 #' @return vector of the names of the cached objects (as strings)
-#' @export
 #' @examples
 #' get.object.cached()
 get.object.cached <- function(){
@@ -84,7 +84,6 @@ get.object.cached <- function(){
 #' Loads all cached objects in the global environment. Used to restore an envirnoment quickly
 #'
 #' @return nothing
-#' @export
 #' @examples
 #' load.all.cached.objects()
 load.all.cached.objects <- function(){
@@ -100,7 +99,6 @@ load.all.cached.objects <- function(){
 #' @param env The environment containing the object to save. Most of the time this is .GlobalEnv
 #' @param cores The number of cores to use
 #' @return nothing
-#' @export
 #' @examples
 #' save.all.objects()
 save.all.objects <- function(env, cores = NULL){
@@ -139,7 +137,6 @@ save.all.objects <- function(env, cores = NULL){
 #' List all objects and return them in a dataframe associated with their type
 #'
 #' @return dataframe of boject names associated with their types
-#' @export
 #' @examples
 #' list.objects()
 list.objects <- function(env = .GlobalEnv)
@@ -160,7 +157,6 @@ list.objects <- function(env = .GlobalEnv)
 #' Remove object from cache
 #'
 #' @return name of the object removed
-#' @export
 #' @examples
 #' uncache.object('df')
 uncache.object <- function(name){

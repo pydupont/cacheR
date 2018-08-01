@@ -4,7 +4,7 @@
 \alias{save.object}
 \title{Save an object (cache)}
 \usage{
-save.object(o, name = NULL)
+save.object(o, name = NULL, cache.dir)
 }
 \arguments{
 \item{o}{object to save}

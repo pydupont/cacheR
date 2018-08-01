@@ -1,14 +1,39 @@
 library(parallel)
 library(assertthat)
 
+
+#' Creates an evironment to save configuration of the caching
+init.env <- function(){
+  if(!exists("caching.env", mode="environment")){
+    caching.env <<- new.env(parent = emptyenv())
+    caching.env$cache.dir <- ".cache"
+  }
+}
+
+#' Sets the caching directory path
+#'
+#' @param path the path of the caching directory
+set.cache.dir <- function(path){
+  init.env()
+  caching.env$cache.dir <- path
+}
+
+#' Returns the path of the caching directory path
+#'
+#' @return the path of the caching directory
+get.cache.dir <- function(){
+  init.env()
+  return(caching.env$cache.dir)
+}
+
 #' Save an object (cache)
 #'
 #' @param o object to save
 #' @return nothing
 #' @examples
 #' save.object(iris)
-save.object <- function(o, name = NULL){
-  cache.dir <- ".cache"
+save.object <- function(o, name=NULL, cache.dir){
+  cache.dir <- get.cache.dir()
   dir.create(cache.dir, showWarnings = FALSE)
   if(is.null(name)){name <- deparse(substitute(o))}
   write(paste("Saving object ", name, sep=""), stderr())
@@ -26,7 +51,7 @@ save.object <- function(o, name = NULL){
 #' load.object("iris", global=T)
 #' iris2 <- load.object("iris")
 load.object <- function(name, global=F){
-  cache.dir <- ".cache"
+  cache.dir <- get.cache.dir()
   if (is.null(global)){global=F}
   assert_that(is.string(name))
   assert_that(object.cached(name))
@@ -50,7 +75,7 @@ load.object <- function(name, global=F){
 #' @examples
 #' object.cached("iris")
 object.cached <- function(name){
-  cache.dir <- ".cache"
+  cache.dir <- get.cache.dir()
   if(!is.string(name)){return(F)}
   if(file.exists(file.path(cache.dir, paste(name, ".rds", sep="")))){return(T)}
   return(F)
@@ -71,7 +96,7 @@ on_failure(object.cached) <- function(call, env) {
 #' @examples
 #' get.object.cached()
 get.object.cached <- function(){
-  cache.dir <- ".cache"
+  cache.dir <- get.cache.dir()
   if(!dir.exists(cache.dir)){return(c())}
   # assert_that(dir.exists(cache.dir))
   files <- list.files(cache.dir)
@@ -104,7 +129,7 @@ load.all.cached.objects <- function(){
 #' @examples
 #' save.all.objects()
 save.all.objects <- function(env, cores = NULL){
-  cache.dir <- ".cache"
+  cache.dir <- get.cache.dir()
   obj <- list.objects(env=env)
   obj <- obj[!(obj$CLASS == "function"),]$OBJECT
   names <- obj
@@ -163,7 +188,7 @@ list.objects <- function(env = .GlobalEnv)
 #' @examples
 #' uncache.object('df')
 uncache.object <- function(name){
-  cache.dir <- ".cache"
+  cache.dir <- get.cache.dir()
   assert_that(is.string(name))
   assert_that(object.cached(name))
   file.remove(file.path(cache.dir, paste(name, ".rds", sep="")))

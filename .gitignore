@@ -7,3 +7,4 @@ NAMESPACE.old
 .Rhistory
 .RData
 *.lock
+.foo

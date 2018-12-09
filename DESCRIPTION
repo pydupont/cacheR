@@ -1,7 +1,7 @@
 Package: caching
 Type: Package
 Title: Helps making caching files easier
-Version: 0.1.8
+Version: 0.1.9
 Author: Pierre-Yves Dupont
 Maintainer: <pierre.dupont@esr.cri.nz>
 Description: Provides functions to help making file caching easier. It creates a .cache folder at the root of the worksapce where it saves RDS files. The objects are cached (or saved) when the command save_object(my_object) is called. The object can be loaded using load_object(my_object_name), all cached objects can be loaded using load.all.cached.files()
